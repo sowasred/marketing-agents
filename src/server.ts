@@ -1,0 +1,267 @@
+import express, { Request, Response, NextFunction } from 'express';
+import { runCampaign, processSingleRow, getQueueStats, clearQueue } from './lib/campaignRunner.js';
+import { sendTestEmail } from './lib/resend.js';
+import config from './lib/config.js';
+import logger from './lib/logger.js';
+
+const app = express();
+
+// Middleware
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Request logging middleware
+app.use((req: Request, res: Response, next: NextFunction) => {
+  logger.info(`${req.method} ${req.path}`);
+  next();
+});
+
+/**
+ * Health check endpoint
+ */
+app.get('/health', (req: Request, res: Response) => {
+  res.json({
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    environment: config.nodeEnv,
+    botName: config.bot.name,
+  });
+});
+
+/**
+ * Trigger full campaign
+ * POST /api/campaign/trigger
+ * Body: { maxRows?: number }
+ */
+app.post('/api/campaign/trigger', async (req: Request, res: Response) => {
+  try {
+    logger.info('Campaign trigger requested');
+    
+    const { maxRows } = req.body;
+    
+    // Run campaign asynchronously
+    const stats = await runCampaign(maxRows);
+    
+    res.json({
+      success: true,
+      message: 'Campaign triggered successfully',
+      stats,
+    });
+  } catch (error: any) {
+    logger.error('Error triggering campaign:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
+/**
+ * Process a specific row
+ * POST /api/campaign/process-row/:rowId
+ */
+app.post('/api/campaign/process-row/:rowId', async (req: Request, res: Response) => {
+  try {
+    const rowId = parseInt(req.params.rowId, 10);
+    
+    if (isNaN(rowId)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid row ID',
+      });
+    }
+    
+    logger.info(`Processing single row: ${rowId}`);
+    
+    const stats = await processSingleRow(rowId);
+    
+    res.json({
+      success: true,
+      message: `Row ${rowId} processed`,
+      stats,
+    });
+  } catch (error: any) {
+    logger.error(`Error processing row ${req.params.rowId}:`, error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
+/**
+ * Get queue status
+ * GET /api/campaign/status
+ */
+app.get('/api/campaign/status', async (req: Request, res: Response) => {
+  try {
+    const stats = await getQueueStats();
+    
+    res.json({
+      success: true,
+      queue: stats,
+      config: {
+        concurrency: config.bot.campaignConcurrency,
+        maxEmailsPerRun: config.bot.maxEmailsPerRun,
+        emailDelayMs: config.bot.emailSendDelayMs,
+      },
+    });
+  } catch (error: any) {
+    logger.error('Error getting queue status:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
+/**
+ * Clear the queue
+ * POST /api/campaign/clear-queue
+ */
+app.post('/api/campaign/clear-queue', async (req: Request, res: Response) => {
+  try {
+    await clearQueue();
+    
+    res.json({
+      success: true,
+      message: 'Queue cleared successfully',
+    });
+  } catch (error: any) {
+    logger.error('Error clearing queue:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
+/**
+ * Send test email
+ * POST /api/test/email
+ * Body: { to: string }
+ */
+app.post('/api/test/email', async (req: Request, res: Response) => {
+  try {
+    const { to } = req.body;
+    
+    if (!to) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email address required',
+      });
+    }
+    
+    logger.info(`Sending test email to: ${to}`);
+    
+    const result = await sendTestEmail(to);
+    
+    res.json({
+      success: result.status === 'SENT',
+      message: result.status === 'SENT' ? 'Test email sent' : 'Failed to send test email',
+      result,
+    });
+  } catch (error: any) {
+    logger.error('Error sending test email:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
+/**
+ * Webhook endpoint for Resend events
+ * POST /webhook/resend
+ */
+app.post('/webhook/resend', async (req: Request, res: Response) => {
+  try {
+    const event = req.body;
+    
+    logger.info('Received Resend webhook:', {
+      type: event.type,
+      emailId: event.data?.email_id,
+    });
+    
+    // Handle different event types
+    switch (event.type) {
+      case 'email.sent':
+        logger.info(`Email sent: ${event.data.email_id}`);
+        break;
+      
+      case 'email.delivered':
+        logger.info(`Email delivered: ${event.data.email_id}`);
+        break;
+      
+      case 'email.delivery_delayed':
+        logger.warn(`Email delivery delayed: ${event.data.email_id}`);
+        break;
+      
+      case 'email.bounced':
+        logger.error(`Email bounced: ${event.data.email_id}`);
+        // TODO: Update row status in spreadsheet
+        break;
+      
+      case 'email.opened':
+        logger.info(`Email opened: ${event.data.email_id}`);
+        break;
+      
+      case 'email.clicked':
+        logger.info(`Email link clicked: ${event.data.email_id}`);
+        break;
+      
+      default:
+        logger.info(`Unknown webhook event: ${event.type}`);
+    }
+    
+    // Always return 200 to acknowledge receipt
+    res.status(200).json({ received: true });
+  } catch (error: any) {
+    logger.error('Error processing webhook:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * 404 handler
+ */
+app.use((req: Request, res: Response) => {
+  res.status(404).json({
+    error: 'Endpoint not found',
+    path: req.path,
+  });
+});
+
+/**
+ * Error handler
+ */
+app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
+  logger.error('Unhandled error:', err);
+  res.status(500).json({
+    error: 'Internal server error',
+    message: err.message,
+  });
+});
+
+/**
+ * Start the server
+ */
+export function startServer(): void {
+  app.listen(config.port, () => {
+    logger.info(`Server started on port ${config.port}`);
+    logger.info(`Environment: ${config.nodeEnv}`);
+    logger.info(`Bot name: ${config.bot.name}`);
+    logger.info(`Data provider: ${config.dataProvider}`);
+    logger.info('Available endpoints:');
+    logger.info('  GET  /health');
+    logger.info('  POST /api/campaign/trigger');
+    logger.info('  POST /api/campaign/process-row/:rowId');
+    logger.info('  GET  /api/campaign/status');
+    logger.info('  POST /api/campaign/clear-queue');
+    logger.info('  POST /api/test/email');
+    logger.info('  POST /webhook/resend');
+  });
+}
+
+export default app;
+

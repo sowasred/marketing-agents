@@ -1,0 +1,45 @@
+{
+  "name": "marketing-campaign-bot",
+  "version": "1.0.0",
+  "description": "Autonomous email campaign bot with GPT personalization and YouTube research",
+  "main": "dist/index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "dev:worker": "tsx watch src/worker.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "start:worker": "node dist/worker.js",
+    "type-check": "tsc --noEmit"
+  },
+  "keywords": [
+    "email",
+    "campaign",
+    "automation",
+    "gpt",
+    "youtube"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "bullmq": "^5.13.2",
+    "csv-parser": "^3.0.0",
+    "csv-writer": "^1.6.0",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "google-auth-library": "^9.14.1",
+    "googleapis": "^144.0.0",
+    "ioredis": "^5.4.1",
+    "openai": "^4.63.0",
+    "resend": "^4.0.0",
+    "winston": "^3.14.2"
+  },
+  "devDependencies": {
+    "@types/csv-parser": "^1.1.10",
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.7.0",
+    "tsx": "^4.19.1",
+    "typescript": "^5.6.2"
+  }
+}
+

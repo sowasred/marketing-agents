@@ -1,0 +1,222 @@
+import { Worker, Job } from 'bullmq';
+import Redis from 'ioredis';
+import {
+  JobData,
+  JobType,
+  ProcessRowJobData,
+  SendEmailJobData,
+  ContactRow,
+} from '../types/index.js';
+import { getDataProvider } from '../lib/campaignRunner.js';
+import { getResearch } from '../lib/researchAgent.js';
+import { personalize } from '../lib/personalizer.js';
+import { sendEmail, validateEmail } from '../lib/resend.js';
+import {
+  findNextEmptyEmailColumn,
+  getTemplateNameFromColumn,
+  formatEmailLogEntry,
+} from '../utils/columnHelper.js';
+import config from '../lib/config.js';
+import logger from '../lib/logger.js';
+
+// Initialize Redis connection for worker
+const redisConnection = new Redis({
+  host: config.redis.host,
+  port: config.redis.port,
+  password: config.redis.password,
+  maxRetriesPerRequest: null,
+});
+
+/**
+ * Processes a PROCESS_ROW job: research, personalize, and send email
+ */
+async function processRowJob(job: Job<ProcessRowJobData>): Promise<void> {
+  const { rowNumber, rowData } = job.data;
+  
+  logger.info(`Processing row ${rowNumber}: ${rowData.Name}`);
+
+  const dataProvider = getDataProvider();
+
+  try {
+    // Find next empty email column
+    const nextColumn = findNextEmptyEmailColumn(rowData);
+    
+    if (!nextColumn) {
+      logger.warn(`No empty email column found for row ${rowNumber}`);
+      return;
+    }
+
+    // Check if column exists in the data provider, if not add it
+    try {
+      await dataProvider.addColumn(nextColumn);
+    } catch (error) {
+      // Column might already exist, that's okay
+      logger.debug(`Column ${nextColumn} may already exist`);
+    }
+
+    // Determine template name
+    const templateName = getTemplateNameFromColumn(nextColumn);
+    logger.info(`Using template ${templateName} for row ${rowNumber}`);
+
+    // Validate email address
+    if (!validateEmail(rowData['Email Address'])) {
+      throw new Error(`Invalid email address: ${rowData['Email Address']}`);
+    }
+
+    // Get research data
+    await job.updateProgress(25);
+    const research = await getResearch(rowData['YT Link'], rowData.Niche);
+
+    // Personalize email
+    await job.updateProgress(50);
+    const personalizedEmail = await personalize(templateName, rowData, research);
+
+    // Send email
+    await job.updateProgress(75);
+    const sendResult = await sendEmail(
+      rowData['Email Address'],
+      personalizedEmail.subject,
+      personalizedEmail.html
+    );
+
+    // Format log entry
+    const logEntry = formatEmailLogEntry(
+      sendResult.timestamp,
+      sendResult.messageId,
+      templateName,
+      sendResult.status,
+      personalizedEmail.subject
+    );
+
+    // Update row in spreadsheet
+    await dataProvider.updateRow(rowNumber, {
+      [nextColumn]: logEntry,
+      IS_Sent: true,
+      Sent_by: config.bot.name,
+    });
+
+    await job.updateProgress(100);
+    
+    logger.info(`Successfully processed row ${rowNumber} - ${sendResult.status}`);
+  } catch (error: any) {
+    logger.error(`Error processing row ${rowNumber}:`, error);
+    throw error;
+  } finally {
+    await dataProvider.close();
+  }
+}
+
+/**
+ * Processes a SEND_EMAIL job: just sends email (for pre-personalized content)
+ */
+async function sendEmailJob(job: Job<SendEmailJobData>): Promise<void> {
+  const { rowNumber, to, subject, html, templateName, columnName } = job.data;
+  
+  logger.info(`Sending email for row ${rowNumber} to ${to}`);
+
+  const dataProvider = getDataProvider();
+
+  try {
+    // Validate email
+    if (!validateEmail(to)) {
+      throw new Error(`Invalid email address: ${to}`);
+    }
+
+    // Send email
+    const sendResult = await sendEmail(to, subject, html);
+
+    // Format log entry
+    const logEntry = formatEmailLogEntry(
+      sendResult.timestamp,
+      sendResult.messageId,
+      templateName,
+      sendResult.status,
+      subject
+    );
+
+    // Update row
+    await dataProvider.updateRow(rowNumber, {
+      [columnName]: logEntry,
+      IS_Sent: true,
+      Sent_by: config.bot.name,
+    });
+
+    logger.info(`Successfully sent email for row ${rowNumber} - ${sendResult.status}`);
+  } catch (error: any) {
+    logger.error(`Error sending email for row ${rowNumber}:`, error);
+    throw error;
+  } finally {
+    await dataProvider.close();
+  }
+}
+
+/**
+ * Main job processor
+ */
+async function processJob(job: Job<JobData>): Promise<void> {
+  logger.info(`Processing job ${job.id} of type ${job.data.type}`);
+
+  try {
+    switch (job.data.type) {
+      case JobType.PROCESS_ROW:
+        await processRowJob(job as Job<ProcessRowJobData>);
+        break;
+      
+      case JobType.SEND_EMAIL:
+        await sendEmailJob(job as Job<SendEmailJobData>);
+        break;
+      
+      default:
+        logger.warn(`Unknown job type: ${(job.data as any).type}`);
+    }
+  } catch (error) {
+    logger.error(`Job ${job.id} failed:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Creates and starts the BullMQ worker
+ */
+export function createWorker(): Worker {
+  const worker = new Worker('email-campaign', processJob, {
+    connection: redisConnection,
+    concurrency: config.bot.campaignConcurrency,
+    limiter: {
+      max: 10, // Max 10 jobs
+      duration: 60000, // Per 60 seconds
+    },
+  });
+
+  // Event listeners
+  worker.on('completed', (job) => {
+    logger.info(`Job ${job.id} completed successfully`);
+  });
+
+  worker.on('failed', (job, err) => {
+    logger.error(`Job ${job?.id} failed:`, err);
+  });
+
+  worker.on('error', (err) => {
+    logger.error('Worker error:', err);
+  });
+
+  worker.on('stalled', (jobId) => {
+    logger.warn(`Job ${jobId} stalled`);
+  });
+
+  logger.info(`Worker started with concurrency ${config.bot.campaignConcurrency}`);
+
+  return worker;
+}
+
+/**
+ * Gracefully closes the worker
+ */
+export async function closeWorker(worker: Worker): Promise<void> {
+  logger.info('Closing worker...');
+  await worker.close();
+  await redisConnection.quit();
+  logger.info('Worker closed');
+}
+
