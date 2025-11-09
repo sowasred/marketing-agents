@@ -19,16 +19,16 @@ app.use(cors({
 
 // Rate Limiting
 const generalLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
+  windowMs: 60 * 60 * 1000 * 6, // 6 hours
+  max: 5, // Limit each IP to 1 request per windowMs
   message: 'Too many requests from this IP, please try again later.',
   standardHeaders: true,
   legacyHeaders: false,
 });
 
 const campaignLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 hour
-  max: 10, // Limit campaign triggers to 10 per hour
+  windowMs: 60 * 60 * 1000 * 6, // 6 hours
+  max: 5, // Limit campaign triggers to 1 per 6 hours
   message: 'Too many campaign triggers, please try again later.',
   standardHeaders: true,
   legacyHeaders: false,

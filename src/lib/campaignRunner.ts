@@ -14,6 +14,7 @@ const redisConnection = new Redis({
   port: config.redis.port,
   password: config.redis.password,
   maxRetriesPerRequest: null,
+  tls: process.env.REDIS_TLS === 'false' ? undefined : {}, // Enable TLS by default for Upstash/cloud Redis
 });
 
 // Initialize BullMQ queue
