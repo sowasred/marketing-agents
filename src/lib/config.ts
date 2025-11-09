@@ -17,6 +17,9 @@ export interface Config {
   resendApiKey: string;
   openaiApiKey: string;
   youtubeApiKey: string;
+  apiKey: string;
+  webhookSecret: string;
+  allowedIps: string[];
   redis: {
     host: string;
     port: number;
@@ -49,6 +52,9 @@ const config: Config = {
   resendApiKey: process.env.RESEND_API_KEY || '',
   openaiApiKey: process.env.OPENAI_API_KEY || '',
   youtubeApiKey: process.env.YOUTUBE_API_KEY || '',
+  apiKey: process.env.API_KEY || '',
+  webhookSecret: process.env.WEBHOOK_SECRET || '',
+  allowedIps: process.env.ALLOWED_IPS ? process.env.ALLOWED_IPS.split(',') : [],
   redis: {
     host: process.env.REDIS_HOST || 'localhost',
     port: parseInt(process.env.REDIS_PORT || '6379', 10),

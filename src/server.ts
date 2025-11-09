@@ -1,30 +1,72 @@
 import express, { Request, Response, NextFunction } from 'express';
+import helmet from 'helmet';
+import cors from 'cors';
+import rateLimit from 'express-rate-limit';
 import { runCampaign, processSingleRow, getQueueStats, clearQueue } from './lib/campaignRunner.js';
 import { sendTestEmail } from './lib/resend.js';
+import { requireApiKey, verifyResendWebhook, addRequestId } from './lib/auth.js';
 import config from './lib/config.js';
 import logger from './lib/logger.js';
 
 const app = express();
 
-// Middleware
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// Security Middleware
+app.use(helmet()); // Adds security headers
+app.use(cors({
+  origin: process.env.ALLOWED_ORIGINS?.split(',') || '*',
+  credentials: true,
+}));
 
-// Request logging middleware
-app.use((req: Request, res: Response, next: NextFunction) => {
-  logger.info(`${req.method} ${req.path}`);
+// Rate Limiting
+const generalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per windowMs
+  message: 'Too many requests from this IP, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const campaignLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 10, // Limit campaign triggers to 10 per hour
+  message: 'Too many campaign triggers, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const testEmailLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000, // 5 minutes
+  max: 5, // Max 5 test emails per 5 minutes
+  message: 'Too many test emails, please try again later.',
+});
+
+// Apply rate limiting to all routes
+app.use(generalLimiter);
+
+// Body parsing
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Request ID and logging
+app.use(addRequestId);
+app.use((req: Request, _res: Response, next: NextFunction) => {
+  logger.info(`${req.method} ${req.path}`, {
+    requestId: req.headers['x-request-id'],
+    ip: req.ip,
+  });
   next();
 });
 
 /**
- * Health check endpoint
+ * Health check endpoint (public, no auth required)
  */
-app.get('/health', (req: Request, res: Response) => {
+app.get('/health', (_req: Request, res: Response) => {
   res.json({
     status: 'healthy',
     timestamp: new Date().toISOString(),
     environment: config.nodeEnv,
     botName: config.bot.name,
+    secured: !!config.apiKey,
   });
 });
 
@@ -32,8 +74,9 @@ app.get('/health', (req: Request, res: Response) => {
  * Trigger full campaign
  * POST /api/campaign/trigger
  * Body: { maxRows?: number }
+ * Requires: X-API-Key header
  */
-app.post('/api/campaign/trigger', async (req: Request, res: Response) => {
+app.post('/api/campaign/trigger', requireApiKey, campaignLimiter, async (req: Request, res: Response) => {
   try {
     logger.info('Campaign trigger requested');
     
@@ -59,8 +102,9 @@ app.post('/api/campaign/trigger', async (req: Request, res: Response) => {
 /**
  * Process a specific row
  * POST /api/campaign/process-row/:rowId
+ * Requires: X-API-Key header
  */
-app.post('/api/campaign/process-row/:rowId', async (req: Request, res: Response) => {
+app.post('/api/campaign/process-row/:rowId', requireApiKey, async (req: Request, res: Response) => {
   try {
     const rowId = parseInt(req.params.rowId, 10);
     
@@ -92,8 +136,9 @@ app.post('/api/campaign/process-row/:rowId', async (req: Request, res: Response)
 /**
  * Get queue status
  * GET /api/campaign/status
+ * Requires: X-API-Key header
  */
-app.get('/api/campaign/status', async (req: Request, res: Response) => {
+app.get('/api/campaign/status', requireApiKey, async (_req: Request, res: Response) => {
   try {
     const stats = await getQueueStats();
     
@@ -118,8 +163,9 @@ app.get('/api/campaign/status', async (req: Request, res: Response) => {
 /**
  * Clear the queue
  * POST /api/campaign/clear-queue
+ * Requires: X-API-Key header
  */
-app.post('/api/campaign/clear-queue', async (req: Request, res: Response) => {
+app.post('/api/campaign/clear-queue', requireApiKey, async (_req: Request, res: Response) => {
   try {
     await clearQueue();
     
@@ -140,8 +186,9 @@ app.post('/api/campaign/clear-queue', async (req: Request, res: Response) => {
  * Send test email
  * POST /api/test/email
  * Body: { to: string }
+ * Requires: X-API-Key header
  */
-app.post('/api/test/email', async (req: Request, res: Response) => {
+app.post('/api/test/email', requireApiKey, testEmailLimiter, async (req: Request, res: Response) => {
   try {
     const { to } = req.body;
     
@@ -173,8 +220,9 @@ app.post('/api/test/email', async (req: Request, res: Response) => {
 /**
  * Webhook endpoint for Resend events
  * POST /webhook/resend
+ * Requires: Valid Resend signature
  */
-app.post('/webhook/resend', async (req: Request, res: Response) => {
+app.post('/webhook/resend', verifyResendWebhook, async (req: Request, res: Response) => {
   try {
     const event = req.body;
     
