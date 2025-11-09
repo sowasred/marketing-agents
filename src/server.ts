@@ -75,14 +75,14 @@ app.post('/api/campaign/process-row/:rowId', async (req: Request, res: Response)
     
     const stats = await processSingleRow(rowId);
     
-    res.json({
+    return res.json({
       success: true,
       message: `Row ${rowId} processed`,
       stats,
     });
   } catch (error: any) {
     logger.error(`Error processing row ${req.params.rowId}:`, error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: error.message,
     });
@@ -156,14 +156,14 @@ app.post('/api/test/email', async (req: Request, res: Response) => {
     
     const result = await sendTestEmail(to);
     
-    res.json({
+    return res.json({
       success: result.status === 'SENT',
       message: result.status === 'SENT' ? 'Test email sent' : 'Failed to send test email',
       result,
     });
   } catch (error: any) {
     logger.error('Error sending test email:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: error.message,
     });
@@ -235,7 +235,7 @@ app.use((req: Request, res: Response) => {
 /**
  * Error handler
  */
-app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
+app.use((err: Error, _req: Request, res: Response) => {
   logger.error('Unhandled error:', err);
   res.status(500).json({
     error: 'Internal server error',

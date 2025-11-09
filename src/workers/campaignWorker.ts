@@ -5,7 +5,6 @@ import {
   JobType,
   ProcessRowJobData,
   SendEmailJobData,
-  ContactRow,
 } from '../types/index.js';
 import { getDataProvider } from '../lib/campaignRunner.js';
 import { getResearch } from '../lib/researchAgent.js';

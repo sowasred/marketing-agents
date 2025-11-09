@@ -109,7 +109,7 @@ export async function runCampaign(maxRows?: number): Promise<CampaignStats> {
     // Process each row
     for (const row of rowsToProcess) {
       try {
-        const processed = await processRow(row, dataProvider);
+        const processed = await processRow(row);
         
         if (processed) {
           stats.processedRows++;
@@ -165,7 +165,7 @@ export async function processSingleRow(rowNumber: number): Promise<CampaignStats
       return stats;
     }
 
-    const processed = await processRow(row, dataProvider);
+    const processed = await processRow(row);
     
     if (processed) {
       stats.processedRows++;
