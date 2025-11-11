@@ -61,7 +61,7 @@ app.use((req: Request, _res: Response, next: NextFunction) => {
  * Health check endpoint (public, no auth required)
  */
 app.get('/health', (_req: Request, res: Response) => {
-  res.json({
+  return res.json({
     status: 'healthy',
     timestamp: new Date().toISOString(),
     environment: config.nodeEnv,
@@ -85,14 +85,14 @@ app.post('/api/campaign/trigger', requireApiKey, campaignLimiter, async (req: Re
     // Run campaign asynchronously
     const stats = await runCampaign(maxRows);
     
-    res.json({
+    return res.json({
       success: true,
       message: 'Campaign triggered successfully',
       stats,
     });
   } catch (error: any) {
     logger.error('Error triggering campaign:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: error.message,
     });
@@ -142,7 +142,7 @@ app.get('/api/campaign/status', requireApiKey, async (_req: Request, res: Respon
   try {
     const stats = await getQueueStats();
     
-    res.json({
+    return res.json({
       success: true,
       queue: stats,
       config: {
@@ -153,7 +153,7 @@ app.get('/api/campaign/status', requireApiKey, async (_req: Request, res: Respon
     });
   } catch (error: any) {
     logger.error('Error getting queue status:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: error.message,
     });
@@ -169,13 +169,13 @@ app.post('/api/campaign/clear-queue', requireApiKey, async (_req: Request, res: 
   try {
     await clearQueue();
     
-    res.json({
+    return res.json({
       success: true,
       message: 'Queue cleared successfully',
     });
   } catch (error: any) {
     logger.error('Error clearing queue:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: error.message,
     });
@@ -263,10 +263,10 @@ app.post('/webhook/resend', verifyResendWebhook, async (req: Request, res: Respo
     }
     
     // Always return 200 to acknowledge receipt
-    res.status(200).json({ received: true });
+    return res.status(200).json({ received: true });
   } catch (error: any) {
     logger.error('Error processing webhook:', error);
-    res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: error.message });
   }
 });
 
@@ -274,7 +274,7 @@ app.post('/webhook/resend', verifyResendWebhook, async (req: Request, res: Respo
  * 404 handler
  */
 app.use((req: Request, res: Response) => {
-  res.status(404).json({
+  return res.status(404).json({
     error: 'Endpoint not found',
     path: req.path,
   });
@@ -285,7 +285,7 @@ app.use((req: Request, res: Response) => {
  */
 app.use((err: Error, _req: Request, res: Response) => {
   logger.error('Unhandled error:', err);
-  res.status(500).json({
+  return res.status(500).json({
     error: 'Internal server error',
     message: err.message,
   });
