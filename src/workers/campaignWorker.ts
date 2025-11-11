@@ -45,22 +45,13 @@ async function processRowJob(job: Job<ProcessRowJobData>): Promise<void> {
       logger.warn(`No empty email column found for row ${rowNumber}`);
       return;
     }
-
-    // Check if column exists in the data provider, if not add it
-    try {
-      await dataProvider.addColumn(nextColumn);
-    } catch (error) {
-      // Column might already exist, that's okay
-      logger.debug(`Column ${nextColumn} may already exist`);
-    }
-
     // Determine template name
     const templateName = getTemplateNameFromColumn(nextColumn);
     logger.info(`Using template ${templateName} for row ${rowNumber}`);
 
     // Validate email address
-    if (!validateEmail(rowData['Email Address'])) {
-      throw new Error(`Invalid email address: ${rowData['Email Address']}`);
+    if (!validateEmail(rowData.EMAIL_ADDRESS)) {
+      throw new Error(`Invalid email address: ${rowData.EMAIL_ADDRESS}`);
     }
 
     // Get research data
@@ -74,7 +65,7 @@ async function processRowJob(job: Job<ProcessRowJobData>): Promise<void> {
     // Send email
     await job.updateProgress(75);
     const sendResult = await sendEmail(
-      rowData['Email Address'],
+      rowData.EMAIL_ADDRESS,
       personalizedEmail.subject,
       personalizedEmail.html
     );

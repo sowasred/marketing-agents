@@ -6,7 +6,7 @@ export interface ContactRow {
   'YT Link': string;
   'YT Followers': number | string;
   Website: string;
-  'Email Address': string;
+  EMAIL_ADDRESS: string;
   IS_Sent: boolean | string;
   Sent_by: string;
   'EMAIL_TEMPLATE-1': string;

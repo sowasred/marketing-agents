@@ -49,14 +49,7 @@ export function findNextEmptyEmailColumn(row: ContactRow): string | null {
       return col;
     }
   }
-  
-  // If all existing columns are filled, suggest the next one
-  if (emailCols.length === 0) {
-    return '$EMAIL_1';
-  }
-  
-  const lastIndex = parseColumnIndex(emailCols[emailCols.length - 1]) || 0;
-  return createColumnName(lastIndex + 1);
+  return null;
 }
 
 /**
