@@ -3,6 +3,14 @@
 # Campaign Management Utility Script
 
 BASE_URL="http://localhost:3000"
+API_KEY="${API_KEY:-}"  # Read from environment variable
+
+# Check if API_KEY is set
+if [ -z "$API_KEY" ]; then
+    echo "⚠️  Warning: API_KEY not set. Set it with: export API_KEY=your-key"
+    echo "   Or run: source .env && export API_KEY"
+    echo ""
+fi
 
 function show_help() {
     echo "Marketing Campaign Bot - Management CLI"
@@ -38,7 +46,8 @@ function check_server() {
 function show_status() {
     check_server
     echo "📊 Queue Status:"
-    curl -s "$BASE_URL/api/campaign/status" | jq '.queue // .'
+    curl -s "$BASE_URL/api/campaign/status" \
+        -H "X-API-Key: $API_KEY" | jq '.queue // .'
 }
 
 function show_health() {
@@ -53,13 +62,28 @@ function trigger_campaign() {
     
     if [ -z "$max_rows" ]; then
         echo "🚀 Triggering full campaign..."
-        curl -s -X POST "$BASE_URL/api/campaign/trigger" | jq '.'
-    else
-        echo "🚀 Triggering campaign (max $max_rows rows)..."
-        curl -s -X POST "$BASE_URL/api/campaign/trigger" \
+        response=$(curl -s -X POST "$BASE_URL/api/campaign/trigger" \
             -H "Content-Type: application/json" \
-            -d "{\"maxRows\": $max_rows}" | jq '.'
+            -H "X-API-Key: $API_KEY" \
+            -d '{}')
+    else
+        # Validate that max_rows is a number
+        if ! [[ "$max_rows" =~ ^[0-9]+$ ]]; then
+            echo "❌ Error: max_rows must be a number, got: '$max_rows'"
+            exit 1
+        fi
+        
+        echo "🚀 Triggering campaign (max $max_rows rows)..."
+        # Use jq to properly construct JSON
+        local json_payload=$(jq -n --arg rows "$max_rows" '{maxRows: ($rows | tonumber)}')
+        response=$(curl -s -X POST "$BASE_URL/api/campaign/trigger" \
+            -H "Content-Type: application/json" \
+            -H "X-API-Key: $API_KEY" \
+            -d "$json_payload")
     fi
+    
+    # Try to parse as JSON, if it fails show raw response
+    echo "$response" | jq '.' 2>/dev/null || echo "$response"
 }
 
 function process_row() {
@@ -73,7 +97,8 @@ function process_row() {
     fi
     
     echo "📧 Processing row $row_id..."
-    curl -s -X POST "$BASE_URL/api/campaign/process-row/$row_id" | jq '.'
+    curl -s -X POST "$BASE_URL/api/campaign/process-row/$row_id" \
+        -H "X-API-Key: $API_KEY" | jq '.'
 }
 
 function send_test_email() {
@@ -89,6 +114,7 @@ function send_test_email() {
     echo "✉️  Sending test email to $email..."
     curl -s -X POST "$BASE_URL/api/test/email" \
         -H "Content-Type: application/json" \
+        -H "X-API-Key: $API_KEY" \
         -d "{\"to\": \"$email\"}" | jq '.'
 }
 
