@@ -124,6 +124,22 @@ export function parseEmailLogEntry(logEntry: string): {
 }
 
 /**
+ * Checks if a row has valid required fields
+ * @param row - Contact row
+ * @returns true if the row has all required fields
+ */
+export function isValidRow(row: ContactRow): boolean {
+  // Check for required fields
+  if (!row.Name || typeof row.Name !== 'string' || row.Name.trim() === '') {
+    return false;
+  }
+  if (!row.EMAIL_ADDRESS || typeof row.EMAIL_ADDRESS !== 'string' || row.EMAIL_ADDRESS.trim() === '') {
+    return false;
+  }
+  return true;
+}
+
+/**
  * Checks if a row should be skipped based on flags
  * @param row - Contact row
  * @returns true if the row should be skipped

@@ -3,7 +3,7 @@ import { ContactRow, CampaignStats, JobType, JobData } from '../types/index.js';
 import { IDataProvider } from '../types/index.js';
 import { CsvDataProvider } from './csvDataProvider.js';
 import { GoogleSheetsProvider } from './googleSheetsProvider.js';
-import { shouldSkipRow } from '../utils/columnHelper.js';
+import { shouldSkipRow, isValidRow } from '../utils/columnHelper.js';
 import config from './config.js';
 import logger from './logger.js';
 import Redis from 'ioredis';
@@ -51,6 +51,12 @@ export async function processRow(
   row: ContactRow
 ): Promise<boolean> {
   try {
+    // Check if row has valid required fields
+    if (!isValidRow(row)) {
+      logger.info(`Skipping row ${row._rowNumber} - Missing required fields (Name or EMAIL_ADDRESS)`);
+      return false;
+    }
+
     // Check if row should be skipped
     if (shouldSkipRow(row)) {
       logger.info(`Skipping row ${row._rowNumber} (${row.Name}) - PAUSED or IN_TALKS`);

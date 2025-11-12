@@ -171,7 +171,7 @@ The system uses `data/contacts.csv` with the following columns:
 | `YT Link` | string | YouTube channel URL |
 | `YT Followers` | number | Subscriber count |
 | `Website` | string | Creator's website |
-| `Email Address` | string | Contact email |
+| `EMAIL_ADDRESS` | string | Contact email |
 | `IS_Sent` | boolean | TRUE if any email sent |
 | `Sent_by` | string | Bot name |
 | `EMAIL_TEMPLATE-1` | string | Template version used |

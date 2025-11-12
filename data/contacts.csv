@@ -1,3 +1,2 @@
-Name,Niche,YT Link,YT Followers,Website,Email Address,IS_Sent,Sent_by,EMAIL_TEMPLATE-1,PAUSE,$IN_TALKS,$EMAIL_1,$EMAIL_2,$EMAIL_3,NOTES
-Sadia Khan,Psychology,https://youtube.com/@sadiapsychology,869000,https://sadiacoaching.com,muldurozan@gmail.com,,,,FALSE,FALSE,,,,Test contact for motivation niche
-
+Name,Niche,YT Link,YT Followers,Website,EMAIL_ADDRESS,IS_Sent,Sent_by,EMAIL_TEMPLATE-1,PAUSE,$IN_TALKS,$EMAIL_1,$EMAIL_2,$EMAIL_3,NOTES
+Sadia Khan,Psychology,https://youtube.com/@sadiapsychology,869000,https://sadiacoaching.com,muldurozan@gmail.com,true,ReplyFanBot,,FALSE,FALSE,2025-11-12T03:17:16.035Z | error_1762917436035 | email_1 | FAILED | Subject: Following up - Sadia Khan,2025-11-12T04:06:17.933Z | 2327e93e-ab70-4142-adcd-65ca9606567b | email_2 | SENT | Subject: Following up - ReplyFan for Sadia Khan,,Test contact for motivation niche
