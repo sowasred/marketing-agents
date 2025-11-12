@@ -11,15 +11,6 @@ export function parseColumnIndex(columnName: string): number | null {
 }
 
 /**
- * Creates an $EMAIL_n column name from an index
- * @param index - Numeric index (e.g., 5)
- * @returns Column name like "$EMAIL_5"
- */
-export function createColumnName(index: number): string {
-  return `$EMAIL_${index}`;
-}
-
-/**
  * Gets all $EMAIL_n column names from a row, sorted by index
  * @param row - Contact row
  * @returns Array of column names sorted numerically
@@ -89,41 +80,6 @@ export function formatEmailLogEntry(
 }
 
 /**
- * Parses an email log entry from a column value
- * @param logEntry - Raw log entry string
- * @returns Parsed log data or null if invalid
- */
-export function parseEmailLogEntry(logEntry: string): {
-  timestamp: string;
-  messageId: string;
-  templateName: string;
-  status: string;
-  subject?: string;
-} | null {
-  if (!logEntry || typeof logEntry !== 'string') {
-    return null;
-  }
-
-  const parts = logEntry.split(' | ');
-  if (parts.length < 4) {
-    return null;
-  }
-
-  const result: any = {
-    timestamp: parts[0],
-    messageId: parts[1],
-    templateName: parts[2],
-    status: parts[3],
-  };
-
-  if (parts[4] && parts[4].startsWith('Subject: ')) {
-    result.subject = parts[4].replace('Subject: ', '');
-  }
-
-  return result;
-}
-
-/**
  * Checks if a row has valid required fields
  * @param row - Contact row
  * @returns true if the row has all required fields
@@ -149,20 +105,5 @@ export function shouldSkipRow(row: ContactRow): boolean {
   const isInTalks = row.$IN_TALKS === true || row.$IN_TALKS === 'TRUE' || row.$IN_TALKS === 'true';
   
   return isPaused || isInTalks;
-}
-
-/**
- * Converts boolean-like values to actual booleans
- * @param value - Value to convert
- * @returns boolean value
- */
-export function toBoolean(value: any): boolean {
-  if (typeof value === 'boolean') {
-    return value;
-  }
-  if (typeof value === 'string') {
-    return value.toLowerCase() === 'true';
-  }
-  return false;
 }
 
