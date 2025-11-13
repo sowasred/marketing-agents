@@ -54,12 +54,6 @@ export function replaceStaticPlaceholders(template: string, row: ContactRow): st
       return String(row[columnName]);
     }
 
-    // Try with spaces (e.g., YT_LINK -> "YT Link")
-    const columnWithSpaces = columnName.replace(/_/g, ' ');
-    if (row[columnWithSpaces] !== undefined) {
-      return String(row[columnWithSpaces]);
-    }
-
     // If not found, leave as is
     logger.warn(`Placeholder ${match} not found in row data`);
     return match;

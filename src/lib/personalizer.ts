@@ -55,6 +55,7 @@ Write natural, conversational text that sounds personal and genuine. Keep it con
 /**
  * Personalizes an email template with both static and GPT-generated content
  */
+// TODO: Instead of extracting and filling instructions one by one, we can use a single prompt to generate the entire email content.
 export async function personalize(
   templateName: string,
   row: ContactRow,
@@ -104,7 +105,7 @@ export async function personalize(
     logger.info(`Successfully personalized email for ${row.name}`);
 
     return {
-      subject: subject || `Following up - ${row.name}`,
+      subject: subject,
       html,
       templateName,
     };
