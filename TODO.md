@@ -1,4 +1,4 @@
-[ ] Cagdas - Add subject to all email templates
+[X] Cagdas - Add subject to all email templates
 [ ] Cagdas - Edit All email templates
 [ ] Cagdas - Update personalizer logic
 [ ] Ozan - Give url to resend for webhook to work
