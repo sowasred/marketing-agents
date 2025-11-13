@@ -34,6 +34,7 @@ export async function sendEmail(
         timestamp: new Date().toISOString(),
         status: 'FAILED',
         error: error.message,
+        to,
       };
     }
 
@@ -43,14 +44,16 @@ export async function sendEmail(
       messageId: data?.id || `msg_${Date.now()}`,
       timestamp: new Date().toISOString(),
       status: 'SENT',
+      to,
     };
   } catch (error: any) {
     logger.error('Error sending email:', error);
-    
+
     return {
       messageId: `error_${Date.now()}`,
       timestamp: new Date().toISOString(),
       status: 'FAILED',
+      to,
       error: error.message || 'Unknown error',
     };
   }

@@ -53,13 +53,13 @@ export async function processRow(
   try {
     // Check if row has valid required fields
     if (!isValidRow(row)) {
-      logger.info(`Skipping row ${row._rowNumber} - Missing required fields (Name or EMAIL_ADDRESS)`);
+      logger.info(`Skipping row ${row._rowNumber} - Missing required fields (name or email_address)`);
       return false;
     }
 
     // Check if row should be skipped
     if (shouldSkipRow(row)) {
-      logger.info(`Skipping row ${row._rowNumber} (${row.Name}) - PAUSED or IN_TALKS`);
+      logger.info(`Skipping row ${row._rowNumber} (${row.name}) - PAUSED or IN_TALKS`);
       return false;
     }
 
@@ -78,7 +78,7 @@ export async function processRow(
       }
     );
 
-    logger.info(`Added row ${row._rowNumber} (${row.Name}) to queue`);
+    logger.info(`Added row ${row._rowNumber} (${row.name}) to queue`);
     return true;
   } catch (error) {
     logger.error(`Error processing row ${row._rowNumber}:`, error);
@@ -117,7 +117,7 @@ export async function runCampaign(maxRows?: number): Promise<CampaignStats> {
     for (const row of rowsToProcess) {
       try {
         const processed = await processRow(row);
-        
+
         if (processed) {
           stats.processedRows++;
         } else {

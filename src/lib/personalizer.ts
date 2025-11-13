@@ -44,7 +44,7 @@ Write natural, conversational text that sounds personal and genuine. Keep it con
 
     const content = response.choices[0].message.content?.trim() || '';
     logger.debug(`Generated GPT content for instruction: ${instruction.substring(0, 30)}...`);
-    
+
     return content;
   } catch (error) {
     logger.error('Error generating GPT content:', error);
@@ -61,7 +61,7 @@ export async function personalize(
   research: ResearchData
 ): Promise<PersonalizedEmail> {
   try {
-    logger.info(`Personalizing template ${templateName} for ${row.Name}`);
+    logger.info(`Personalizing template ${templateName} for ${row.name}`);
 
     // Load template
     let template = await loadTemplate(templateName);
@@ -74,20 +74,20 @@ export async function personalize(
 
     // Create context for GPT
     const context: TemplateContext = {
-      name: row.Name,
-      niche: row.Niche,
-      website: row.Website,
-      ytFollowers: row['YT Followers'],
+      name: row.name,
+      niche: row.niche,
+      website: row.website,
+      ytFollowers: row.yt_followers,
       research,
     };
 
     // Generate content for each GPT instruction
     const replacements = new Map<string, string>();
-    
+
     for (const instruction of gptInstructions) {
       const content = await generateGptContent(instruction.instruction, context);
       replacements.set(instruction.placeholder, content);
-      
+
       // Small delay to avoid rate limiting
       await new Promise((resolve) => setTimeout(resolve, 100));
     }
@@ -101,15 +101,15 @@ export async function personalize(
     // Convert to HTML
     const html = textToHtml(body);
 
-    logger.info(`Successfully personalized email for ${row.Name}`);
+    logger.info(`Successfully personalized email for ${row.name}`);
 
     return {
-      subject: subject || `Following up - ${row.Name}`,
+      subject: subject || `Following up - ${row.name}`,
       html,
       templateName,
     };
   } catch (error) {
-    logger.error(`Error personalizing template for ${row.Name}:`, error);
+    logger.error(`Error personalizing template for ${row.name}:`, error);
     throw error;
   }
 }
@@ -126,10 +126,10 @@ export async function batchPersonalize(
 
   for (const row of rows) {
     try {
-      const research = researchMap.get(row['YT Link']);
-      
+      const research = researchMap.get(row.yt_link);
+
       if (!research) {
-        logger.warn(`No research data for ${row.Name}, skipping`);
+        logger.warn(`No research data for ${row.name}, skipping`);
         continue;
       }
 

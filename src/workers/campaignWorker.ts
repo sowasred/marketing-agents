@@ -32,15 +32,15 @@ const redisConnection = new Redis({
  */
 async function processRowJob(job: Job<ProcessRowJobData>): Promise<void> {
   const { rowNumber, rowData } = job.data;
-  
-  logger.info(`Processing row ${rowNumber}: ${rowData.Name}`);
+
+  logger.info(`Processing row ${rowNumber}: ${rowData.name}`);
 
   const dataProvider = getDataProvider();
 
   try {
     // Find next empty email column
     const nextColumn = findNextEmptyEmailColumn(rowData);
-    
+
     if (!nextColumn) {
       logger.warn(`No empty email column found for row ${rowNumber}`);
       return;
@@ -50,13 +50,13 @@ async function processRowJob(job: Job<ProcessRowJobData>): Promise<void> {
     logger.info(`Using template ${templateName} for row ${rowNumber}`);
 
     // Validate email address
-    if (!validateEmail(rowData.EMAIL_ADDRESS)) {
-      throw new Error(`Invalid email address: ${rowData.EMAIL_ADDRESS}`);
+    if (!validateEmail(rowData.email_address)) {
+      throw new Error(`Invalid email address: ${rowData.email_address}`);
     }
 
     // Get research data
     await job.updateProgress(25);
-    const research = await getResearch(rowData['YT Link'], rowData.Niche);
+    const research = await getResearch(rowData.yt_link, rowData.niche);
 
     // Personalize email
     await job.updateProgress(50);
@@ -65,7 +65,7 @@ async function processRowJob(job: Job<ProcessRowJobData>): Promise<void> {
     // Send email
     await job.updateProgress(75);
     const sendResult = await sendEmail(
-      rowData.EMAIL_ADDRESS,
+      rowData.email_address,
       personalizedEmail.subject,
       personalizedEmail.html
     );
@@ -82,12 +82,12 @@ async function processRowJob(job: Job<ProcessRowJobData>): Promise<void> {
     // Update row in spreadsheet
     await dataProvider.updateRow(rowNumber, {
       [nextColumn]: logEntry,
-      IS_Sent: true,
-      Sent_by: config.bot.name,
+      is_sent: true,
+      sent_by: config.bot.name,
     });
 
     await job.updateProgress(100);
-    
+
     logger.info(`Successfully processed row ${rowNumber} - ${sendResult.status}`);
   } catch (error: any) {
     logger.error(`Error processing row ${rowNumber}:`, error);
@@ -102,7 +102,7 @@ async function processRowJob(job: Job<ProcessRowJobData>): Promise<void> {
  */
 async function sendEmailJob(job: Job<SendEmailJobData>): Promise<void> {
   const { rowNumber, to, subject, html, templateName, columnName } = job.data;
-  
+
   logger.info(`Sending email for row ${rowNumber} to ${to}`);
 
   const dataProvider = getDataProvider();
@@ -128,8 +128,8 @@ async function sendEmailJob(job: Job<SendEmailJobData>): Promise<void> {
     // Update row
     await dataProvider.updateRow(rowNumber, {
       [columnName]: logEntry,
-      IS_Sent: true,
-      Sent_by: config.bot.name,
+      is_sent: true,
+      sent_by: config.bot.name,
     });
 
     logger.info(`Successfully sent email for row ${rowNumber} - ${sendResult.status}`);
@@ -152,11 +152,11 @@ async function processJob(job: Job<JobData>): Promise<void> {
       case JobType.PROCESS_ROW:
         await processRowJob(job as Job<ProcessRowJobData>);
         break;
-      
+
       case JobType.SEND_EMAIL:
         await sendEmailJob(job as Job<SendEmailJobData>);
         break;
-      
+
       default:
         logger.warn(`Unknown job type: ${(job.data as any).type}`);
     }

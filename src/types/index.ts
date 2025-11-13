@@ -1,19 +1,19 @@
 // Core data types
 export interface ContactRow {
   _rowNumber: number;
-  Name: string;
-  Niche: string;
-  'YT Link': string;
-  'YT Followers': number | string;
-  Website: string;
-  EMAIL_ADDRESS: string;
-  IS_Sent: boolean | string;
-  Sent_by: string;
-  'EMAIL_TEMPLATE-1': string;
-  PAUSE: boolean | string;
-  $IN_TALKS: boolean | string;
-  NOTES?: string;
-  [key: string]: any; // For dynamic $EMAIL_n columns
+  name: string;
+  niche: string;
+  yt_link: string;
+  yt_followers: number | string;
+  website: string;
+  email_address: string;
+  is_sent: boolean | string;
+  sent_by: string;
+  email_template_1: string;
+  pause: boolean | string;
+  $in_talks: boolean | string;
+  notes?: string;
+  [key: string]: any; // For dynamic $email_n columns
 }
 
 export interface ResearchData {
@@ -33,6 +33,7 @@ export interface EmailSendResult {
   messageId: string;
   timestamp: string;
   status: 'SENT' | 'FAILED';
+  to: string;
   error?: string;
 }
 

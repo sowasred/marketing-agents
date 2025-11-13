@@ -122,7 +122,7 @@ export class CsvDataProvider extends DataProvider {
    * Writes all rows back to the CSV file
    */
   private async writeRows(rows: ContactRow[]): Promise<void> {
-    // Determine all headers (including dynamic $EMAIL_n columns)
+    // Determine all headers (including dynamic $email_n columns)
     const allHeaders = new Set<string>(this.headers);
     rows.forEach((row) => {
       Object.keys(row).forEach((key) => {
@@ -133,7 +133,7 @@ export class CsvDataProvider extends DataProvider {
     });
 
     const headerArray = Array.from(allHeaders);
-    
+
     // Create CSV writer
     const csvWriter = createObjectCsvWriter({
       path: this.filePath,

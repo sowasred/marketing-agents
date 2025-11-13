@@ -1,23 +1,23 @@
 import { ContactRow } from '../types/index.js';
 
 /**
- * Parses the numeric index from an $EMAIL_n column name
- * @param columnName - Column name like "$EMAIL_5"
+ * Parses the numeric index from an $email_n column name
+ * @param columnName - Column name like "$email_5"
  * @returns The numeric index (e.g., 5) or null if invalid
  */
 export function parseColumnIndex(columnName: string): number | null {
-  const match = columnName.match(/^\$EMAIL_(\d+)$/);
+  const match = columnName.match(/^\$email_(\d+)$/);
   return match ? parseInt(match[1], 10) : null;
 }
 
 /**
- * Gets all $EMAIL_n column names from a row, sorted by index
+ * Gets all $email_n column names from a row, sorted by index
  * @param row - Contact row
  * @returns Array of column names sorted numerically
  */
 export function getEmailColumns(row: ContactRow): string[] {
   return Object.keys(row)
-    .filter((key) => key.startsWith('$EMAIL_'))
+    .filter((key) => key.startsWith('$email_'))
     .sort((a, b) => {
       const indexA = parseColumnIndex(a) || 0;
       const indexB = parseColumnIndex(b) || 0;
@@ -26,13 +26,13 @@ export function getEmailColumns(row: ContactRow): string[] {
 }
 
 /**
- * Finds the next empty $EMAIL_n column in a row
+ * Finds the next empty $email_n column in a row
  * @param row - Contact row
  * @returns The next empty column name, or null if all are filled
  */
 export function findNextEmptyEmailColumn(row: ContactRow): string | null {
   const emailCols = getEmailColumns(row);
-  
+
   // Find first empty column
   for (const col of emailCols) {
     const value = row[col];
@@ -45,7 +45,7 @@ export function findNextEmptyEmailColumn(row: ContactRow): string | null {
 
 /**
  * Determines the template name based on column name
- * @param columnName - Column name like "$EMAIL_3"
+ * @param columnName - Column name like "$email_3"
  * @returns Template name like "email_3"
  */
 export function getTemplateNameFromColumn(columnName: string): string {
@@ -86,10 +86,10 @@ export function formatEmailLogEntry(
  */
 export function isValidRow(row: ContactRow): boolean {
   // Check for required fields
-  if (!row.Name || typeof row.Name !== 'string' || row.Name.trim() === '') {
+  if (!row.name || typeof row.name !== 'string' || row.name.trim() === '') {
     return false;
   }
-  if (!row.EMAIL_ADDRESS || typeof row.EMAIL_ADDRESS !== 'string' || row.EMAIL_ADDRESS.trim() === '') {
+  if (!row.email_address || typeof row.email_address !== 'string' || row.email_address.trim() === '') {
     return false;
   }
   return true;
@@ -101,9 +101,9 @@ export function isValidRow(row: ContactRow): boolean {
  * @returns true if the row should be skipped
  */
 export function shouldSkipRow(row: ContactRow): boolean {
-  const isPaused = row.PAUSE === true || row.PAUSE === 'TRUE' || row.PAUSE === 'true';
-  const isInTalks = row.$IN_TALKS === true || row.$IN_TALKS === 'TRUE' || row.$IN_TALKS === 'true';
-  
+  const isPaused = row.pause === true || row.pause === 'TRUE' || row.pause === 'true';
+  const isInTalks = row.$in_talks === true || row.$in_talks === 'TRUE' || row.$in_talks === 'true';
+
   return isPaused || isInTalks;
 }
 

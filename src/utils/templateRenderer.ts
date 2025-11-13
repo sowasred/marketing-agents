@@ -11,7 +11,7 @@ import logger from '../lib/logger.js';
  */
 export async function loadTemplate(templateName: string): Promise<string> {
   const templatePath = join(config.paths.templates, `${templateName}.txt`);
-  
+
   try {
     const content = await readFile(templatePath, 'utf-8');
     logger.debug(`Loaded template: ${templateName}`);
@@ -30,22 +30,22 @@ export async function loadTemplate(templateName: string): Promise<string> {
  */
 export function replaceStaticPlaceholders(template: string, row: ContactRow): string {
   let result = template;
-  
+
   // Replace [NAME]
-  result = result.replace(/\[NAME\]/g, row.Name || '');
-  
+  result = result.replace(/\[NAME\]/g, row.name || '');
+
   // Replace [NICHE]
-  result = result.replace(/\[NICHE\]/g, row.Niche || '');
-  
+  result = result.replace(/\[NICHE\]/g, row.niche || '');
+
   // Replace [WEBSITE]
-  result = result.replace(/\[WEBSITE\]/g, row.Website || '');
-  
+  result = result.replace(/\[WEBSITE\]/g, row.website || '');
+
   // Replace [YT_LINK]
-  result = result.replace(/\[YT_LINK\]/g, row['YT Link'] || '');
-  
+  result = result.replace(/\[YT_LINK\]/g, row.yt_link || '');
+
   // Replace [YT_FOLLOWERS]
-  result = result.replace(/\[YT_FOLLOWERS\]/g, String(row['YT Followers'] || ''));
-  
+  result = result.replace(/\[YT_FOLLOWERS\]/g, String(row.yt_followers || ''));
+
   // Replace any other [COLUMN] patterns with row data if available
   const placeholderRegex = /\[([A-Z_]+)\]/g;
   result = result.replace(placeholderRegex, (match, columnName) => {
@@ -53,18 +53,18 @@ export function replaceStaticPlaceholders(template: string, row: ContactRow): st
     if (row[columnName] !== undefined) {
       return String(row[columnName]);
     }
-    
+
     // Try with spaces (e.g., YT_LINK -> "YT Link")
     const columnWithSpaces = columnName.replace(/_/g, ' ');
     if (row[columnWithSpaces] !== undefined) {
       return String(row[columnWithSpaces]);
     }
-    
+
     // If not found, leave as is
     logger.warn(`Placeholder ${match} not found in row data`);
     return match;
   });
-  
+
   return result;
 }
 
@@ -77,7 +77,7 @@ export function extractGptInstructions(template: string): GptInstruction[] {
   const instructions: GptInstruction[] = [];
   const regex = /\{\{([^}]+)\}\}/g;
   let match;
-  
+
   while ((match = regex.exec(template)) !== null) {
     instructions.push({
       placeholder: match[0],
@@ -86,7 +86,7 @@ export function extractGptInstructions(template: string): GptInstruction[] {
       endIndex: match.index + match[0].length,
     });
   }
-  
+
   logger.debug(`Extracted ${instructions.length} GPT instructions from template`);
   return instructions;
 }
@@ -102,11 +102,11 @@ export function replaceGptPlaceholders(
   replacements: Map<string, string>
 ): string {
   let result = template;
-  
+
   for (const [placeholder, replacement] of replacements.entries()) {
     result = result.replace(placeholder, replacement);
   }
-  
+
   return result;
 }
 
@@ -123,20 +123,20 @@ export function parseEmailTemplate(template: string): {
   const lines = template.split('\n');
   let subject = '';
   let bodyStartIndex = 0;
-  
+
   // Check if first line is subject
   if (lines[0] && lines[0].trim().startsWith('Subject:')) {
     subject = lines[0].replace(/^Subject:\s*/i, '').trim();
     bodyStartIndex = 1;
   }
-  
+
   // Skip empty lines after subject
   while (bodyStartIndex < lines.length && lines[bodyStartIndex].trim() === '') {
     bodyStartIndex++;
   }
-  
+
   const body = lines.slice(bodyStartIndex).join('\n').trim();
-  
+
   return { subject, body };
 }
 
@@ -148,13 +148,13 @@ export function parseEmailTemplate(template: string): {
 export function textToHtml(text: string): string {
   // Split by double newlines for paragraphs
   const paragraphs = text.split(/\n\n+/);
-  
+
   const htmlParagraphs = paragraphs.map((p) => {
     // Replace single newlines with <br>
     const withBreaks = p.replace(/\n/g, '<br>');
     return `<p>${withBreaks}</p>`;
   });
-  
+
   return `
 <!DOCTYPE html>
 <html>
