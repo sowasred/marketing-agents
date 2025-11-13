@@ -4,7 +4,6 @@ import {
   loadTemplate,
   replaceStaticPlaceholders,
   extractGptInstructions,
-  replaceGptPlaceholders,
   parseEmailTemplate,
   textToHtml,
 } from '../utils/templateRenderer.js';
@@ -16,13 +15,22 @@ const openai = new OpenAI({
 });
 
 /**
- * Generates content for a single GPT instruction
+ * Generates the complete email content by replacing all GPT instruction placeholders in a single call
  */
-async function generateGptContent(
-  instruction: string,
+async function generateCompleteEmail(
+  template: string,
   context: TemplateContext
 ): Promise<string> {
   try {
+    // Check if there are any GPT instructions in the template
+    const gptInstructions = extractGptInstructions(template);
+
+    // If no GPT instructions, return template as-is
+    if (gptInstructions.length === 0) {
+      logger.debug('No GPT instructions found in template, returning as-is');
+      return template;
+    }
+
     const prompt = `You are an AI assistant helping to personalize email outreach to YouTube creators.
 
 Context about the creator:
@@ -31,31 +39,40 @@ Context about the creator:
 - Channel Summary: ${context.research.summary}
 - Recent Videos: ${context.research.recentVideos.join(', ') || 'No recent videos available'}
 
-Task: ${instruction}
+Below is an email template with placeholders in the format {{instruction}}. Your task is to replace ALL of these placeholders with personalized, natural, conversational text that sounds personal and genuine.
 
-Write natural, conversational text that sounds personal and genuine. Keep it concise (under 50 words unless the instruction specifically asks for more). Do not use overly salesy language.`;
+Template:
+${template}
+
+Instructions:
+- Replace each {{instruction}} placeholder with content that matches the instruction
+- Keep the content concise and natural (typically under 50 words per placeholder unless the instruction asks for more)
+- Do not use overly salesy language
+- Maintain the exact structure and formatting of the template
+- Return the complete email with all placeholders replaced, including the subject line if present
+
+Return the complete email exactly as shown in the template, but with all {{instruction}} placeholders replaced with personalized content.`;
 
     const response = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [{ role: 'user', content: prompt }],
-      max_tokens: 200,
+      max_tokens: 2000,
       temperature: 0.8,
     });
 
     const content = response.choices[0].message.content?.trim() || '';
-    logger.debug(`Generated GPT content for instruction: ${instruction.substring(0, 30)}...`);
+    logger.debug(`Generated complete email content for ${context.name}`);
 
     return content;
   } catch (error) {
-    logger.error('Error generating GPT content:', error);
-    return '[Content generation failed]';
+    logger.error('Error generating complete email content:', error);
+    throw error;
   }
 }
 
 /**
  * Personalizes an email template with both static and GPT-generated content
  */
-// TODO: Instead of extracting and filling instructions one by one, we can use a single prompt to generate the entire email content.
 export async function personalize(
   templateName: string,
   row: ContactRow,
@@ -70,9 +87,6 @@ export async function personalize(
     // Replace static placeholders [COLUMN_NAME]
     template = replaceStaticPlaceholders(template, row);
 
-    // Extract GPT instructions {{...}}
-    const gptInstructions = extractGptInstructions(template);
-
     // Create context for GPT
     const context: TemplateContext = {
       name: row.name,
@@ -82,19 +96,8 @@ export async function personalize(
       research,
     };
 
-    // Generate content for each GPT instruction
-    const replacements = new Map<string, string>();
-
-    for (const instruction of gptInstructions) {
-      const content = await generateGptContent(instruction.instruction, context);
-      replacements.set(instruction.placeholder, content);
-
-      // Small delay to avoid rate limiting
-      await new Promise((resolve) => setTimeout(resolve, 100));
-    }
-
-    // Replace GPT placeholders
-    template = replaceGptPlaceholders(template, replacements);
+    // Generate complete email content in a single GPT call
+    template = await generateCompleteEmail(template, context);
 
     // Parse subject and body
     const { subject, body } = parseEmailTemplate(template);
