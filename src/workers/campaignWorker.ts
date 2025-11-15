@@ -100,8 +100,6 @@ async function processRowJob(job: Job<ProcessRowJobData>): Promise<void> {
   } catch (error: any) {
     logger.error(`Error processing row ${rowNumber}:`, error);
     throw error;
-  } finally {
-    await dataProvider.close();
   }
 }
 
@@ -144,8 +142,6 @@ async function sendEmailJob(job: Job<SendEmailJobData>): Promise<void> {
   } catch (error: any) {
     logger.error(`Error sending email for row ${rowNumber}:`, error);
     throw error;
-  } finally {
-    await dataProvider.close();
   }
 }
 

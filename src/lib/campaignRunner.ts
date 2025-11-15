@@ -160,8 +160,6 @@ export async function runCampaign(maxRows?: number): Promise<CampaignStats> {
     logger.error('Error running campaign:', error);
     stats.errors.push(`Campaign error: ${error.message}`);
     return stats;
-  } finally {
-    await dataProvider.close();
   }
 }
 
@@ -216,8 +214,6 @@ export async function processSingleRow(rowNumber: number): Promise<CampaignStats
     stats.errors.push(`Error: ${error.message}`);
     logger.error(`Error processing single row ${rowNumber}:`, error);
     return stats;
-  } finally {
-    await dataProvider.close();
   }
 }
 

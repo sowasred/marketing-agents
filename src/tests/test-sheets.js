@@ -39,8 +39,6 @@ async function test() {
     const rowsAfter = await provider.getRows();
     console.log('Headers include test_column:', rowsAfter[0]?.test_column !== undefined);
 
-    // Test 6: close()
-    await provider.close();
     console.log('\n✅ All tests passed!');
   } catch (error) {
     console.error('❌ Test failed:', error);

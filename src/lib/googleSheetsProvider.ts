@@ -15,7 +15,6 @@ export class GoogleSheetsProvider extends DataProvider {
   private auth: JWT | null = null;
   private sheets: ReturnType<typeof google.sheets> | null = null;
   private headers: string[] = [];
-  private cache: ContactRow[] | null = null;
   private rowNumberToSheetRow: Map<number, number> = new Map(); // Maps _rowNumber to actual sheet row
   private initPromise: Promise<void> | null = null;
 
@@ -200,10 +199,6 @@ export class GoogleSheetsProvider extends DataProvider {
    * Reads all rows from the Google Sheet
    */
   async getRows(): Promise<ContactRow[]> {
-    if (this.cache) {
-      return this.cache;
-    }
-
     await this.ensureInitialized();
     // Refresh headers to pick up any new columns added in Sheets
     await this.loadHeaders();
@@ -234,7 +229,6 @@ export class GoogleSheetsProvider extends DataProvider {
         }
       });
 
-      this.cache = contactRows;
       logger.info(`Loaded ${contactRows.length} rows from Google Sheet`);
       return contactRows;
     } catch (error: any) {
@@ -257,7 +251,7 @@ export class GoogleSheetsProvider extends DataProvider {
   async updateRow(rowNumber: number, updates: Partial<ContactRow>): Promise<void> {
     await this.ensureInitialized();
 
-    // Get from cache first
+    // Get rows
     const rows = await this.getRows();
     const rowIndex = rows.findIndex((row) => row._rowNumber === rowNumber);
 
@@ -307,13 +301,6 @@ export class GoogleSheetsProvider extends DataProvider {
         values: [rowData],
       },
     });
-
-    // Update cache
-    rows[rowIndex] = {
-      ...currentRow,
-      ...updates,
-    };
-    this.cache = rows;
 
     logger.info(`Updated row ${rowNumber} in Google Sheet`);
   }
@@ -381,8 +368,6 @@ export class GoogleSheetsProvider extends DataProvider {
       // Update cached headers
       this.headers.push(columnName);
 
-      // Invalidate cache (structure changed)
-      this.cache = null;
       this.rowNumberToSheetRow.clear();
 
       logger.info(`Added column ${columnName} to Google Sheet`);
@@ -390,19 +375,5 @@ export class GoogleSheetsProvider extends DataProvider {
       logger.error(`Error adding column ${columnName} to Google Sheet:`, error);
       throw new Error(`Failed to add column: ${error.message}`);
     }
-  }
-
-  /**
-   * Clears cached data and releases resources
-   */
-  async close(): Promise<void> {
-    this.cache = null;
-    this.headers = [];
-    this.rowNumberToSheetRow.clear();
-    this.sheetName = '';
-    this.auth = null;
-    this.sheets = null;
-    this.initPromise = null;
-    logger.debug('GoogleSheetsProvider closed, cache and resources cleared');
   }
 }

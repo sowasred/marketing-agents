@@ -9,6 +9,5 @@ export abstract class DataProvider implements IDataProvider {
   abstract getRow(rowNumber: number): Promise<ContactRow | null>;
   abstract updateRow(rowNumber: number, updates: Partial<ContactRow>): Promise<void>;
   abstract addColumn(columnName: string): Promise<void>;
-  abstract close(): Promise<void>;
 }
 

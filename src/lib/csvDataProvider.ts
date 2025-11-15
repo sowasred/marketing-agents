@@ -9,7 +9,6 @@ import config from './config.js';
 
 export class CsvDataProvider extends DataProvider {
   private filePath: string;
-  private cache: ContactRow[] | null = null;
   private headers: string[] = [];
 
   constructor(fileName: string = 'contacts.csv') {
@@ -22,10 +21,6 @@ export class CsvDataProvider extends DataProvider {
    * Reads all rows from the CSV file
    */
   async getRows(): Promise<ContactRow[]> {
-    if (this.cache) {
-      return this.cache;
-    }
-
     if (!existsSync(this.filePath)) {
       logger.warn(`CSV file not found: ${this.filePath}`);
       return [];
@@ -47,7 +42,6 @@ export class CsvDataProvider extends DataProvider {
           });
         })
         .on('end', () => {
-          this.cache = rows;
           logger.info(`Loaded ${rows.length} rows from CSV`);
           resolve(rows);
         })
@@ -83,9 +77,6 @@ export class CsvDataProvider extends DataProvider {
       ...updates,
     };
 
-    // Update cache
-    this.cache = rows;
-
     // Write back to file
     await this.writeRows(rows);
     logger.info(`Updated row ${rowNumber}`);
@@ -109,9 +100,6 @@ export class CsvDataProvider extends DataProvider {
     rows.forEach((row) => {
       row[columnName] = '';
     });
-
-    // Update cache
-    this.cache = rows;
 
     // Write back to file
     await this.writeRows(rows);
@@ -151,14 +139,6 @@ export class CsvDataProvider extends DataProvider {
 
     await csvWriter.writeRecords(records);
     logger.debug(`Wrote ${records.length} rows to CSV`);
-  }
-
-  /**
-   * Clears the cache
-   */
-  async close(): Promise<void> {
-    this.cache = null;
-    logger.debug('CsvDataProvider closed, cache cleared');
   }
 }
 

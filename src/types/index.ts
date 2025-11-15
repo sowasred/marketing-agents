@@ -98,7 +98,6 @@ export interface IDataProvider {
   getRow(rowNumber: number): Promise<ContactRow | null>;
   updateRow(rowNumber: number, updates: Partial<ContactRow>): Promise<void>;
   addColumn(columnName: string): Promise<void>;
-  close(): Promise<void>;
 }
 
 // Campaign statistics
