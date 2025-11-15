@@ -93,9 +93,25 @@ export function isValidRow(row: ContactRow): boolean {
   if (!row.name || typeof row.name !== 'string' || row.name.trim() === '') {
     return false;
   }
+  // TODO: use validEmail function
   if (!row.email_address || typeof row.email_address !== 'string' || row.email_address.trim() === '') {
     return false;
   }
+
+  // Check yt_link: must not be empty
+  const ytLink = row.yt_link;
+  if (!ytLink || typeof ytLink !== 'string' || ytLink.trim() === '') {
+    return false;
+  }
+
+  // If yt_link is "N/A" (case-sensitive), website must not be empty
+  if (ytLink === 'N/A') {
+    const website = row.website;
+    if (!website || typeof website !== 'string' || website.trim() === '') {
+      return false;
+    }
+  }
+
   return true;
 }
 
