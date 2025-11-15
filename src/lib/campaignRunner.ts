@@ -3,7 +3,7 @@ import { ContactRow, CampaignStats, JobType, JobData } from '../types/index.js';
 import { IDataProvider } from '../types/index.js';
 import { CsvDataProvider } from './csvDataProvider.js';
 import { GoogleSheetsProvider } from './googleSheetsProvider.js';
-import { shouldSkipRow, isValidRow } from '../utils/columnHelper.js';
+import { shouldSkipRow, isValidRow, findNextEmptyEmailColumn } from '../utils/columnHelper.js';
 import config from './config.js';
 import logger from './logger.js';
 import Redis from 'ioredis';
@@ -51,15 +51,31 @@ export async function processRow(
   row: ContactRow
 ): Promise<boolean> {
   try {
-    // Check if row has valid required fields
-    if (!isValidRow(row)) {
-      logger.info(`Skipping row ${row._rowNumber} - Missing required fields (name or email_address)`);
-      return false;
-    }
-
     // Check if row should be skipped
     if (shouldSkipRow(row)) {
       logger.info(`Skipping row ${row._rowNumber} (${row.name}) - PAUSED or IN_TALKS`);
+      return false;
+    }
+
+    const nextColumn = findNextEmptyEmailColumn(row);
+    if (!nextColumn) {
+      logger.info(`Skipping row ${row._rowNumber} (${row.name}) - No empty email column found`);
+      return false;
+    }
+    // Check if row has valid required fields
+    if (!isValidRow(row)) {
+      // Determine specific validation failure reason
+      let reason = 'Missing required fields';
+      if (!row.name || typeof row.name !== 'string' || row.name.trim() === '') {
+        reason = 'Missing name';
+      } else if (!row.email_address || typeof row.email_address !== 'string' || row.email_address.trim() === '') {
+        reason = 'Missing email_address';
+      } else if (!row.yt_link || typeof row.yt_link !== 'string' || row.yt_link.trim() === '') {
+        reason = 'Missing yt_link';
+      } else if (row.yt_link === 'N/A' && (!row.website || typeof row.website !== 'string' || row.website.trim() === '')) {
+        reason = 'yt_link is N/A but website is missing';
+      }
+      logger.info(`Skipping row ${row._rowNumber} - ${reason}`);
       return false;
     }
 
@@ -173,7 +189,18 @@ export async function processSingleRow(rowNumber: number): Promise<CampaignStats
     }
     // Check if row is valid if not give error and return stats
     if (!isValidRow(row)) {
-      stats.errors.push(`Row Missing required fields (name or email_address)`);
+      // Determine specific validation failure reason
+      let reason = 'Missing required fields';
+      if (!row.name || typeof row.name !== 'string' || row.name.trim() === '') {
+        reason = 'Missing name';
+      } else if (!row.email_address || typeof row.email_address !== 'string' || row.email_address.trim() === '') {
+        reason = 'Missing email_address';
+      } else if (!row.yt_link || typeof row.yt_link !== 'string' || row.yt_link.trim() === '') {
+        reason = 'Missing yt_link';
+      } else if (row.yt_link === 'N/A' && (!row.website || typeof row.website !== 'string' || row.website.trim() === '')) {
+        reason = 'yt_link is N/A but website is missing';
+      }
+      stats.errors.push(`Row ${rowNumber}: ${reason}`);
       return stats;
     }
     const processed = await processRow(row);
