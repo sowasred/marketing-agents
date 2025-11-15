@@ -31,8 +31,9 @@ export async function loadTemplate(templateName: string): Promise<string> {
 export function replaceStaticPlaceholders(template: string, row: ContactRow): string {
   let result = template;
 
-  // Replace [NAME]
-  result = result.replace(/\[NAME\]/g, row.name || '');
+  // Replace [NAME] with first name if multiple names are present
+  const firstName = row.name ? row.name.split(' ').filter(Boolean)[0] : '';
+  result = result.replace(/\[NAME\]/g, firstName);
 
   // Replace [NICHE]
   result = result.replace(/\[NICHE\]/g, row.niche || '');
