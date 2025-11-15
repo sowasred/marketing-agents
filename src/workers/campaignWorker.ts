@@ -7,7 +7,7 @@ import {
   SendEmailJobData,
 } from '../types/index.js';
 import { getDataProvider } from '../lib/campaignRunner.js';
-import { getResearch } from '../lib/researchAgent.js';
+import { getResearch, getWebsiteResearch } from '../lib/researchAgent.js';
 import { personalize } from '../lib/personalizer.js';
 import { sendEmail, validateEmail } from '../lib/resend.js';
 import {
@@ -49,15 +49,21 @@ async function processRowJob(job: Job<ProcessRowJobData>): Promise<void> {
     const templateName = getTemplateNameFromColumn(nextColumn);
     logger.info(`Using template ${templateName} for row ${rowNumber}`);
 
-    // TODO: Remove if we are already doing validation on endpoint.
-    // Validate email address
-    if (!validateEmail(rowData.email_address)) {
-      throw new Error(`Invalid email address: ${rowData.email_address}`);
-    }
-
     // Get research data
     await job.updateProgress(25);
-    const research = await getResearch(rowData.yt_link, rowData.niche);
+    let research;
+    // TODO: Turn all research related logic into getResearch function.
+    if (rowData.yt_link === 'N/A') {
+      // Use website research when yt_link is "N/A"
+      logger.info(`Using website research for row ${rowNumber} (yt_link is N/A)`);
+      if (!rowData.website || typeof rowData.website !== 'string' || rowData.website.trim() === '') {
+        throw new Error(`yt_link is N/A but website is missing for row ${rowNumber}`);
+      }
+      research = await getWebsiteResearch(rowData.website, rowData.niche);
+    } else {
+      // Use YouTube research for normal yt_link values
+      research = await getResearch(rowData.yt_link, rowData.niche);
+    }
 
     // Personalize email
     await job.updateProgress(50);
