@@ -49,6 +49,7 @@ async function processRowJob(job: Job<ProcessRowJobData>): Promise<void> {
     const templateName = getTemplateNameFromColumn(nextColumn);
     logger.info(`Using template ${templateName} for row ${rowNumber}`);
 
+    // TODO: Remove if we are already doing validation on endpoint.
     // Validate email address
     if (!validateEmail(rowData.email_address)) {
       throw new Error(`Invalid email address: ${rowData.email_address}`);
@@ -76,7 +77,8 @@ async function processRowJob(job: Job<ProcessRowJobData>): Promise<void> {
       sendResult.messageId,
       templateName,
       sendResult.status,
-      personalizedEmail.subject
+      personalizedEmail.subject,
+      personalizedEmail.html,
     );
 
     // Update row in spreadsheet
@@ -173,6 +175,8 @@ export function createWorker(): Worker {
   const worker = new Worker('email-campaign', processJob, {
     connection: redisConnection,
     concurrency: config.bot.campaignConcurrency,
+    lockDuration: 300000, // 5 minutes (300,000 ms)
+    maxStalledCount: 3, // Allow job to stall up to 3 times before failing
     limiter: {
       max: 10, // Max 10 jobs
       duration: 60000, // Per 60 seconds

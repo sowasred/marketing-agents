@@ -24,6 +24,11 @@ const generalLimiter = rateLimit({
   message: 'Too many requests from this IP, please try again later.',
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req) => {
+    // Skip rate limiting for localhost
+    const ip = req.ip || req.socket.remoteAddress || '';
+    return ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1';
+  },
 });
 
 const campaignLimiter = rateLimit({
@@ -32,12 +37,22 @@ const campaignLimiter = rateLimit({
   message: 'Too many campaign triggers, please try again later.',
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req) => {
+    // Skip rate limiting for localhost
+    const ip = req.ip || req.socket.remoteAddress || '';
+    return ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1';
+  },
 });
 
 const testEmailLimiter = rateLimit({
   windowMs: 5 * 60 * 1000, // 5 minutes
   max: 5, // Max 5 test emails per 5 minutes
   message: 'Too many test emails, please try again later.',
+  skip: (req) => {
+    // Skip rate limiting for localhost
+    const ip = req.ip || req.socket.remoteAddress || '';
+    return ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1';
+  },
 });
 
 // Apply rate limiting to all routes
@@ -66,6 +81,7 @@ app.get('/health', (_req: Request, res: Response) => {
     timestamp: new Date().toISOString(),
     environment: config.nodeEnv,
     botName: config.bot.name,
+    dataProvider: config.dataProvider,
     secured: !!config.apiKey,
   });
 });
@@ -79,12 +95,12 @@ app.get('/health', (_req: Request, res: Response) => {
 app.post('/api/campaign/trigger', requireApiKey, campaignLimiter, async (req: Request, res: Response) => {
   try {
     logger.info('Campaign trigger requested');
-    
+
     const { maxRows } = req.body;
-    
+
     // Run campaign asynchronously
     const stats = await runCampaign(maxRows);
-    
+
     return res.json({
       success: true,
       message: 'Campaign triggered successfully',
@@ -107,18 +123,18 @@ app.post('/api/campaign/trigger', requireApiKey, campaignLimiter, async (req: Re
 app.post('/api/campaign/process-row/:rowId', requireApiKey, async (req: Request, res: Response) => {
   try {
     const rowId = parseInt(req.params.rowId, 10);
-    
+
     if (isNaN(rowId)) {
       return res.status(400).json({
         success: false,
         error: 'Invalid row ID',
       });
     }
-    
+
     logger.info(`Processing single row: ${rowId}`);
-    
+
     const stats = await processSingleRow(rowId);
-    
+
     return res.json({
       success: true,
       message: `Row ${rowId} processed`,
@@ -141,7 +157,7 @@ app.post('/api/campaign/process-row/:rowId', requireApiKey, async (req: Request,
 app.get('/api/campaign/status', requireApiKey, async (_req: Request, res: Response) => {
   try {
     const stats = await getQueueStats();
-    
+
     return res.json({
       success: true,
       queue: stats,
@@ -168,7 +184,7 @@ app.get('/api/campaign/status', requireApiKey, async (_req: Request, res: Respon
 app.post('/api/campaign/clear-queue', requireApiKey, async (_req: Request, res: Response) => {
   try {
     await clearQueue();
-    
+
     return res.json({
       success: true,
       message: 'Queue cleared successfully',
@@ -191,18 +207,18 @@ app.post('/api/campaign/clear-queue', requireApiKey, async (_req: Request, res: 
 app.post('/api/test/email', requireApiKey, testEmailLimiter, async (req: Request, res: Response) => {
   try {
     const { to } = req.body;
-    
+
     if (!to) {
       return res.status(400).json({
         success: false,
         error: 'Email address required',
       });
     }
-    
+
     logger.info(`Sending test email to: ${to}`);
-    
+
     const result = await sendTestEmail(to);
-    
+
     return res.json({
       success: result.status === 'SENT',
       message: result.status === 'SENT' ? 'Test email sent' : 'Failed to send test email',
@@ -225,43 +241,43 @@ app.post('/api/test/email', requireApiKey, testEmailLimiter, async (req: Request
 app.post('/webhook/resend', verifyResendWebhook, async (req: Request, res: Response) => {
   try {
     const event = req.body;
-    
+
     logger.info('Received Resend webhook:', {
       type: event.type,
       emailId: event.data?.email_id,
     });
-    
+
     // Handle different event types
     switch (event.type) {
       case 'email.sent':
         logger.info(`Email sent: ${event.data.email_id}`);
         break;
-      
+
       case 'email.delivered':
         logger.info(`Email delivered: ${event.data.email_id}`);
         break;
-      
+
       case 'email.delivery_delayed':
         logger.warn(`Email delivery delayed: ${event.data.email_id}`);
         break;
-      
+
       case 'email.bounced':
         logger.error(`Email bounced: ${event.data.email_id}`);
         // TODO: Update row status in spreadsheet
         break;
-      
+
       case 'email.opened':
         logger.info(`Email opened: ${event.data.email_id}`);
         break;
-      
+
       case 'email.clicked':
         logger.info(`Email link clicked: ${event.data.email_id}`);
         break;
-      
+
       default:
         logger.info(`Unknown webhook event: ${event.type}`);
     }
-    
+
     // Always return 200 to acknowledge receipt
     return res.status(200).json({ received: true });
   } catch (error: any) {

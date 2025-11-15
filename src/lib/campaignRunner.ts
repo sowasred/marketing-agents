@@ -171,9 +171,13 @@ export async function processSingleRow(rowNumber: number): Promise<CampaignStats
       stats.errors.push(`Row ${rowNumber} not found`);
       return stats;
     }
-
+    // Check if row is valid if not give error and return stats
+    if (!isValidRow(row)) {
+      stats.errors.push(`Row Missing required fields (name or email_address)`);
+      return stats;
+    }
     const processed = await processRow(row);
-    
+
     if (processed) {
       stats.processedRows++;
     } else {

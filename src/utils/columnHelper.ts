@@ -17,7 +17,7 @@ export function parseColumnIndex(columnName: string): number | null {
  */
 export function getEmailColumns(row: ContactRow): string[] {
   return Object.keys(row)
-    .filter((key) => key.startsWith('$email_'))
+    .filter((key) => /^\$email_\d+$/i.test(key))
     .sort((a, b) => {
       const indexA = parseColumnIndex(a) || 0;
       const indexB = parseColumnIndex(b) || 0;
@@ -70,11 +70,15 @@ export function formatEmailLogEntry(
   messageId: string,
   templateName: string,
   status: string,
-  subject?: string
+  subject?: string,
+  html?: string,
 ): string {
   let entry = `${timestamp} | ${messageId} | ${templateName} | ${status}`;
   if (subject) {
     entry += ` | Subject: ${subject}`;
+  }
+  if (html) {
+    entry += ` | HTML: ${html}`;
   }
   return entry;
 }

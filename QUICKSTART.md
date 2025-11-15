@@ -146,6 +146,18 @@ curl http://localhost:3000/health
 
 Should show `dataProvider: "csv"` or `dataProvider: "sheets"` based on your config.
 
+Expected response:
+```json
+{
+  "status": "healthy",
+  "timestamp": "2025-11-13T14:23:11Z",
+  "environment": "development",
+  "botName": "ReplyFanBot",
+  "dataProvider": "csv",
+  "secured": false
+}
+```
+
 ### 2. Send Test Email
 
 ```bash
@@ -164,12 +176,6 @@ Expected response:
     "status": "SENT"
   }
 }
-```
-
-### 2. Check System Health
-
-```bash
-curl http://localhost:3000/health
 ```
 
 ### 3. Check Queue Status
